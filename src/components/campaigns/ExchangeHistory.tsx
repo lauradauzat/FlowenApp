@@ -1,3 +1,5 @@
+import { MarkDateObtainedButton } from './MarkDateObtainedButton';
+
 export type Exchange = {
   type: 'send' | 'response';
   id: string;
@@ -8,6 +10,10 @@ export type Exchange = {
   statusOrType: string;
   venueName?: string;
   contactName?: string;
+  campaignId?: string;
+  contactId?: string;
+  venueId?: string;
+  isDateObtained?: boolean;
 };
 
 const typeLabel: Record<string, string> = {
@@ -23,10 +29,12 @@ export function ExchangeHistory({
   items,
   title = 'Historique des échanges',
   emptyMessage = 'Aucun échange.',
+  projects = [],
 }: {
   items: Exchange[];
   title?: string;
   emptyMessage?: string;
+  projects?: Array<{ id: string; name: string }>;
 }) {
   if (items.length === 0) {
     return (
@@ -66,9 +74,21 @@ export function ExchangeHistory({
               {x.venueName && <span className="text-gray-500">— {x.venueName}</span>}
               {x.contactName && <span className="text-gray-500">— {x.contactName}</span>}
               <span className="text-gray-400">{typeLabel[x.statusOrType] ?? x.statusOrType}</span>
+              {x.type === 'response' && x.isDateObtained && (
+                <span className="text-green-600 text-xs">✓ Date obtenue</span>
+              )}
             </div>
             <p className="font-medium text-gray-900 mt-1">{x.subject}</p>
             <p className="text-sm text-gray-600 mt-0.5 line-clamp-2">{x.content}</p>
+            {x.type === 'response' && !x.isDateObtained && x.campaignId && x.contactId && x.venueId && projects.length > 0 && (
+              <MarkDateObtainedButton
+                responseId={x.id}
+                campaignId={x.campaignId}
+                contactId={x.contactId}
+                venueId={x.venueId}
+                projects={projects}
+              />
+            )}
           </li>
         ))}
       </ul>

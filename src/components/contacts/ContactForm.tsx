@@ -3,14 +3,34 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createContact, updateContact } from '@/actions/contactActions';
+import type { ContactFieldKey, FicheFieldConfig } from '@/lib/ficheFields';
+import { CONTACT_FIELD_KEYS } from '@/lib/ficheFields';
 
+const CONTACT_LABELS: Record<ContactFieldKey, string> = {
+  firstName: 'Prénom',
+  lastName: 'Nom',
+  email: 'Email',
+  phone: 'Téléphone',
+  role: 'Rôle',
+  notes: 'Notes',
+};
+
+const CONTACT_PLACEHOLDERS: Record<ContactFieldKey, string> = {
+  firstName: 'Ex: Marie',
+  lastName: 'Ex: Dupont',
+  email: 'exemple@domaine.com',
+  phone: '+33 6 12 34 56 78',
+  role: 'Programmateur, Manager, Booking Agent...',
+  notes: 'Infos utiles sur ce contact (disponibilités, préférences, historique, etc.)',
+};
+
+type ContactFormPropsBase = {
+  fieldConfig?: Record<ContactFieldKey, FicheFieldConfig>;
+  onSuccess?: () => void;
+};
 type ContactFormProps =
-  | {
-      mode: 'create';
-      initialValues?: undefined;
-      onSuccess?: () => void;
-    }
-  | {
+  | (ContactFormPropsBase & { mode: 'create'; initialValues?: undefined })
+  | (ContactFormPropsBase & {
       mode: 'edit';
       initialValues: {
         id: string;
@@ -21,8 +41,7 @@ type ContactFormProps =
         role?: string | null;
         notes?: string | null;
       };
-      onSuccess?: () => void;
-    };
+    });
 
 export function ContactForm(props: ContactFormProps) {
   const router = useRouter();
@@ -68,103 +87,52 @@ export function ContactForm(props: ContactFormProps) {
     }
   };
 
+  const cfg = props.fieldConfig;
+  const inputClass =
+    'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-            Prénom *
-          </label>
-          <input
-            type="text"
-            id="firstName"
-            name="firstName"
-            required
-            defaultValue={initial?.firstName ?? ''}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Ex: Marie"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-            Nom *
-          </label>
-          <input
-            type="text"
-            id="lastName"
-            name="lastName"
-            required
-            defaultValue={initial?.lastName ?? ''}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Ex: Dupont"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-            Email
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            defaultValue={initial?.email ?? ''}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="exemple@domaine.com"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-            Téléphone
-          </label>
-          <input
-            type="tel"
-            id="phone"
-            name="phone"
-            defaultValue={initial?.phone ?? ''}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="+33 6 12 34 56 78"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-          Rôle
-        </label>
-        <input
-          type="text"
-          id="role"
-          name="role"
-          defaultValue={initial?.role ?? ''}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Programmateur, Manager, Booking Agent..."
-        />
-      </div>
-
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-          Notes
-        </label>
-        <textarea
-          id="notes"
-          name="notes"
-          defaultValue={initial?.notes ?? ''}
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Infos utiles sur ce contact (disponibilités, préférences, historique, etc.)"
-        />
-      </div>
+      {CONTACT_FIELD_KEYS.map((key) => {
+        if (cfg && !cfg[key]?.visible) return null;
+        const required = cfg ? cfg[key].required : key === 'firstName' || key === 'lastName';
+        const rawDef = isEdit ? (initial as Record<string, unknown>)[key] : cfg?.[key]?.defaultValue;
+        const def = rawDef != null && rawDef !== '' ? String(rawDef) : '';
+        const isNotes = key === 'notes';
+        return (
+          <div key={key}>
+            <label htmlFor={key} className="block text-sm font-medium text-gray-700 mb-2">
+              {CONTACT_LABELS[key]}
+              {required ? ' *' : ''}
+            </label>
+            {isNotes ? (
+              <textarea
+                id={key}
+                name={key}
+                required={required}
+                defaultValue={def}
+                rows={4}
+                className={inputClass}
+                placeholder={CONTACT_PLACEHOLDERS[key]}
+              />
+            ) : (
+              <input
+                type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'}
+                id={key}
+                name={key}
+                required={required}
+                defaultValue={def}
+                className={inputClass}
+                placeholder={CONTACT_PLACEHOLDERS[key]}
+              />
+            )}
+          </div>
+        );
+      })}
 
       <div className="flex gap-4">
         <button

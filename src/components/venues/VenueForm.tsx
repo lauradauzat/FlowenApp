@@ -3,14 +3,36 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createVenue, updateVenue } from '@/actions/venueActions';
+import type { VenueFieldKey, FicheFieldConfig } from '@/lib/ficheFields';
+import { VENUE_FIELD_KEYS } from '@/lib/ficheFields';
 
+const VENUE_LABELS: Record<VenueFieldKey, string> = {
+  name: 'Nom de la salle',
+  address: 'Adresse',
+  capacity: 'Capacité',
+  style: 'Style musical',
+  region: 'Région / Ville',
+  website: 'Site web',
+  notes: 'Notes',
+};
+
+const VENUE_PLACEHOLDERS: Record<VenueFieldKey, string> = {
+  name: 'Ex: Le Bataclan',
+  address: 'Ex: 50 Boulevard Voltaire, 75011 Paris',
+  capacity: 'Ex: 500',
+  style: 'Ex: Rock, Electro, Jazz...',
+  region: 'Ex: Paris, Lyon, Marseille...',
+  website: 'https://www.exemple.com',
+  notes: 'Infos utiles sur cette salle (disponibilités, tarifs, historique, etc.)',
+};
+
+type VenueFormPropsBase = {
+  fieldConfig?: Record<VenueFieldKey, FicheFieldConfig>;
+  onSuccess?: () => void;
+};
 type VenueFormProps =
-  | {
-      mode: 'create';
-      initialValues?: undefined;
-      onSuccess?: () => void;
-    }
-  | {
+  | (VenueFormPropsBase & { mode: 'create'; initialValues?: undefined })
+  | (VenueFormPropsBase & {
       mode: 'edit';
       initialValues: {
         id: string;
@@ -22,8 +44,7 @@ type VenueFormProps =
         website?: string | null;
         notes?: string | null;
       };
-      onSuccess?: () => void;
-    };
+    });
 
 export function VenueForm(props: VenueFormProps) {
   const router = useRouter();
@@ -72,115 +93,59 @@ export function VenueForm(props: VenueFormProps) {
     }
   };
 
+  const cfg = props.fieldConfig;
+  const inputClass =
+    'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
       )}
 
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-          Nom de la salle *
-        </label>
-        <input
-          type="text"
-          id="name"
-          name="name"
-          required
-          defaultValue={initial?.name ?? ''}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Ex: Le Bataclan"
-        />
-      </div>
+      {VENUE_FIELD_KEYS.map((key) => {
+        if (cfg && !cfg[key]?.visible) return null;
+        const required = cfg ? cfg[key].required : key === 'name';
+        const rawDef = isEdit ? (initial as Record<string, unknown>)[key] : cfg?.[key]?.defaultValue;
+        const isCapacity = key === 'capacity';
+        const isNotes = key === 'notes';
+        const def = isCapacity
+          ? (typeof rawDef === 'number' ? rawDef : '')
+          : rawDef != null && rawDef !== ''
+            ? String(rawDef)
+            : '';
 
-      <div>
-        <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-          Adresse
-        </label>
-        <input
-          type="text"
-          id="address"
-          name="address"
-          defaultValue={initial?.address ?? ''}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Ex: 50 Boulevard Voltaire, 75011 Paris"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="capacity" className="block text-sm font-medium text-gray-700 mb-2">
-            Capacité
-          </label>
-          <input
-            type="number"
-            id="capacity"
-            name="capacity"
-            min="1"
-            defaultValue={initial?.capacity ?? ''}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Ex: 500"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="style" className="block text-sm font-medium text-gray-700 mb-2">
-            Style musical
-          </label>
-          <input
-            type="text"
-            id="style"
-            name="style"
-            defaultValue={initial?.style ?? ''}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Ex: Rock, Electro, Jazz..."
-          />
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="region" className="block text-sm font-medium text-gray-700 mb-2">
-          Région / Ville
-        </label>
-        <input
-          type="text"
-          id="region"
-          name="region"
-          defaultValue={initial?.region ?? ''}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Ex: Paris, Lyon, Marseille..."
-        />
-      </div>
-
-      <div>
-        <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
-          Site web
-        </label>
-        <input
-          type="url"
-          id="website"
-          name="website"
-          defaultValue={initial?.website ?? ''}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="https://www.exemple.com"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-          Notes
-        </label>
-        <textarea
-          id="notes"
-          name="notes"
-          defaultValue={initial?.notes ?? ''}
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Infos utiles sur cette salle (disponibilités, tarifs, historique, etc.)"
-        />
-      </div>
+        return (
+          <div key={key}>
+            <label htmlFor={key} className="block text-sm font-medium text-gray-700 mb-2">
+              {VENUE_LABELS[key]}
+              {required ? ' *' : ''}
+            </label>
+            {isNotes ? (
+              <textarea
+                id={key}
+                name={key}
+                required={required}
+                defaultValue={def}
+                rows={4}
+                className={inputClass}
+                placeholder={VENUE_PLACEHOLDERS[key]}
+              />
+            ) : (
+              <input
+                type={isCapacity ? 'number' : key === 'website' ? 'url' : 'text'}
+                id={key}
+                name={key}
+                required={required}
+                min={isCapacity ? 1 : undefined}
+                defaultValue={def}
+                className={inputClass}
+                placeholder={VENUE_PLACEHOLDERS[key]}
+              />
+            )}
+          </div>
+        );
+      })}
 
       <div className="flex gap-4">
         <button

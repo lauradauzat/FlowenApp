@@ -833,9 +833,19 @@ function shouldUpdateSource(source: {
 }
 
 /**
- * Récupère toutes les sources qui doivent être mises à jour
+ * Récupère toutes les sources qui doivent être mises à jour.
+ * Si userId est fourni et que UserSettings.scrapingAutoUpdateEnabled === false, renvoie [].
  */
 export async function getSourcesDueForUpdate(userId?: string) {
+  if (userId) {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+    });
+    if (settings && settings.scrapingAutoUpdateEnabled === false) {
+      return [];
+    }
+  }
+
   const where: {
     isActive: boolean;
     frequency?: {
@@ -895,7 +905,8 @@ export async function getSourcesDueForUpdate(userId?: string) {
 }
 
 /**
- * Déclenche les mises à jour automatiques pour toutes les sources qui le nécessitent
+ * Déclenche les mises à jour automatiques pour toutes les sources qui le nécessitent.
+ * Si userId est fourni et que UserSettings.scrapingAutoUpdateEnabled === false, ne fait rien ([]).
  */
 export async function triggerAutoUpdates(userId?: string) {
   const sourcesToUpdate = await getSourcesDueForUpdate(userId);

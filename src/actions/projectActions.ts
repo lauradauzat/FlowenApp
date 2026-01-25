@@ -20,6 +20,25 @@ type ActionResult<T> = {
   };
 };
 
+/** Epic 6: Liste projets (id, name) pour select (ex. formulaire Date obtenue). */
+export async function getProjectsForSelect(): Promise<
+  { success: true; data: Array<{ id: string; name: string }> } | { success: false; error: { code: string; message: string } }
+> {
+  try {
+    const userId = await requireAuth();
+    const list = await prisma.project.findMany({
+      where: { userId },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    });
+    return { success: true, data: list };
+  } catch (e) {
+    if (e instanceof AppError) return { success: false, error: { code: e.code || 'ERROR', message: e.message } };
+    console.error('getProjectsForSelect:', e);
+    return { success: false, error: { code: 'UNKNOWN', message: 'Une erreur est survenue' } };
+  }
+}
+
 /**
  * Crée un nouveau projet musical avec sa structure d'étapes préconstruite
  */

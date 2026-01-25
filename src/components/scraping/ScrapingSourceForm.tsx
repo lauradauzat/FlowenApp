@@ -12,6 +12,7 @@ type ScrapingSourceFormProps =
   | {
       mode: 'create';
       initialValues?: undefined;
+      defaultFrequency?: string | null;
     }
   | {
       mode: 'edit';
@@ -25,6 +26,7 @@ type ScrapingSourceFormProps =
         frequency?: string | null;
         isActive: boolean;
       };
+      defaultFrequency?: undefined;
     };
 
 export function ScrapingSourceForm(props: ScrapingSourceFormProps) {
@@ -34,6 +36,7 @@ export function ScrapingSourceForm(props: ScrapingSourceFormProps) {
 
   const isEdit = props.mode === 'edit';
   const initial = isEdit ? props.initialValues : undefined;
+  const defaultFreq = !isEdit && 'defaultFrequency' in props ? props.defaultFrequency : undefined;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -173,7 +176,7 @@ export function ScrapingSourceForm(props: ScrapingSourceFormProps) {
         <select
           id="frequency"
           name="frequency"
-          defaultValue={initial?.frequency ?? ''}
+          defaultValue={initial?.frequency ?? defaultFreq ?? ''}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Manuel</option>

@@ -1,6 +1,6 @@
 # Story 3.1: Création et gestion des fiches de contact
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -188,14 +188,20 @@ Claude Sonnet 4.5
   - ✓ Champ de recherche et filtres de statut intégrés dans `src/app/contacts/page.tsx`
   - ✓ Filtrage côté serveur avec clauses Prisma `OR` + `status`
   - ✓ Utilisation des query params (`q`, `status`) pour persister les filtres
+- **Session Dev Story (2025-01-26)** : Story déjà complète ; suite de tests OK. Correction de `contactActions.test.ts` (expect `dataSource: 'MANUAL'`, `status: 'ACTIVE'`) pour supprimer la régression. Status passé à `review`.
+- **Code review (2025-01-26)** : Corrections appliquées — filtre par rôle (7.4), bouton Réinitialiser (Link au lieu de onClick Server Component), tests getContacts/updateContact/deleteContact/ownership, File List complétée, libellé « Créer un nouveau contact », extraction `getStatusLabel`/`getStatusClasses` dans `statusHelpers`. Status → `done`.
 
 ### File List
 
+- `src/actions/contactActions.test.ts` — Tests createContact, getContacts, updateContact, deleteContact, ownership/multi‑tenancy
+- `src/lib/validations/contactValidation.ts` — Validation métier contact (validateContact) pour statut ERROR/ACTIVE
+- `src/lib/contacts/statusHelpers.ts` — getStatusLabel, getStatusClasses (partagés page liste et détail)
+- `src/components/contacts/EditableContactSection.tsx` — Section édition inline sur la page détail
 - `prisma/schema.prisma` — Ajout de l'enum `ContactStatus` et du model `Contact`
 - `prisma/migrations/20260123110730_add_contacts/migration.sql` — Migration SQL pour la table `contacts` + enum
 - `src/lib/validations/contact.ts` — Schémas Zod `createContactSchema`, `updateContactSchema`, `deleteContactSchema`
 - `src/actions/contactActions.ts` — Server Actions `createContact`, `getContacts`, `updateContact`, `deleteContact`
 - `src/components/contacts/ContactForm.tsx` — Formulaire client pour création/édition de contact
-- `src/app/contacts/page.tsx` — Page de liste des contacts avec recherche et filtres
+- `src/app/contacts/page.tsx` — Page liste avec recherche, filtres (statut, rôle), Réinitialiser (Link), libellé AC, statusHelpers
 - `src/app/contacts/new/page.tsx` — Page de création de contact
-- `src/app/contacts/[id]/page.tsx` — Page de détail + édition de contact
+- `src/app/contacts/[id]/page.tsx` — Page de détail + édition, statusHelpers

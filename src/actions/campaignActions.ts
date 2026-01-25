@@ -45,6 +45,94 @@ export async function getCampaigns(): Promise<
   }
 }
 
+/** Epic 8: Campagnes pour le tableau de bord (RUNNING en priorité, puis COMPLETED récentes) avec stats. */
+export async function getDashboardCampaigns(limit = 5): Promise<
+  ActionResult<Array<{
+    id: string;
+    name: string;
+    status: string;
+    stats: { total: number; sent: number; failed: number; pending: number; responses: number };
+  }>>
+> {
+  try {
+    const userId = await requireAuth();
+    const list = await prisma.campaign.findMany({
+      where: { userId, status: { in: ['RUNNING', 'COMPLETED'] } },
+      orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], // RUNNING avant COMPLETED
+      take: limit * 2, // on filtre après pour avoir au moins limit RUNNING + COMPLETED
+      select: { id: true, name: true, status: true },
+    });
+    const running = list.filter((c) => c.status === 'RUNNING');
+    const completed = list.filter((c) => c.status === 'COMPLETED').slice(0, limit);
+    const ids = [...running, ...completed].slice(0, limit).map((c) => c.id);
+
+    const withStats = await Promise.all(
+      ids.map(async (id) => {
+        const c = list.find((x) => x.id === id)!;
+        const [sendCounts, responseCount, total] = await Promise.all([
+          prisma.campaignSend.groupBy({
+            by: ['status'],
+            where: { campaignRecipient: { campaignId: id } },
+            _count: true,
+          }),
+          prisma.campaignResponse.count({ where: { campaignId: id } }),
+          prisma.campaignRecipient.count({ where: { campaignId: id } }),
+        ]);
+        const byStatus: Record<string, number> = { PENDING: 0, SENT: 0, FAILED: 0 };
+        for (const row of sendCounts) byStatus[row.status] = row._count;
+        return {
+          id: c.id,
+          name: c.name,
+          status: c.status,
+          stats: { total, sent: byStatus.SENT, failed: byStatus.FAILED, pending: byStatus.PENDING, responses: responseCount },
+        };
+      })
+    );
+    return { success: true, data: withStats };
+  } catch (e) {
+    return { success: false, error: toError(e) };
+  }
+}
+
+/** Epic 8: Réponses récentes pour le tableau de bord. */
+export async function getRecentResponses(limit = 5): Promise<
+  ActionResult<Array<{
+    id: string;
+    campaignId: string;
+    campaignName: string;
+    contactName: string;
+    venueName: string;
+    type: string;
+    receivedAt: Date;
+    isDateObtained: boolean;
+  }>>
+> {
+  try {
+    const userId = await requireAuth();
+    const rows = await prisma.campaignResponse.findMany({
+      where: { campaign: { userId } },
+      include: { campaign: { select: { name: true } }, contact: true, venue: { select: { name: true } } },
+      orderBy: { receivedAt: 'desc' },
+      take: limit,
+    });
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        campaignId: r.campaignId,
+        campaignName: r.campaign.name,
+        contactName: `${r.contact.firstName} ${r.contact.lastName}`,
+        venueName: r.venue.name,
+        type: r.type,
+        receivedAt: r.receivedAt,
+        isDateObtained: r.isDateObtained,
+      })),
+    };
+  } catch (e) {
+    return { success: false, error: toError(e) };
+  }
+}
+
 export type RecipientClassification = 'repondant' | 'non_repondant' | 'en_attente';
 
 function computeClassification(
@@ -498,6 +586,10 @@ export async function getExchangesForContact(contactId: string): Promise<
       campaignName: string;
       statusOrType: string;
       venueName: string;
+      campaignId?: string;
+      contactId?: string;
+      venueId?: string;
+      isDateObtained?: boolean;
     }>
   >
 > {
@@ -517,7 +609,7 @@ export async function getExchangesForContact(contactId: string): Promise<
         orderBy: { receivedAt: 'desc' },
       }),
     ]);
-    const items: Array<{ type: 'send' | 'response'; id: string; date: Date; subject: string; content: string; campaignName: string; statusOrType: string; venueName: string }> = [];
+    const items: Array<{ type: 'send' | 'response'; id: string; date: Date; subject: string; content: string; campaignName: string; statusOrType: string; venueName: string; campaignId?: string; contactId?: string; venueId?: string; isDateObtained?: boolean }> = [];
     for (const s of sends) {
       items.push({
         type: 'send',
@@ -540,6 +632,10 @@ export async function getExchangesForContact(contactId: string): Promise<
         campaignName: r.campaign.name,
         statusOrType: r.type,
         venueName: r.venue.name,
+        campaignId: r.campaignId,
+        contactId: r.contactId,
+        venueId: r.venueId,
+        isDateObtained: r.isDateObtained,
       });
     }
     items.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -560,6 +656,10 @@ export async function getExchangesForVenue(venueId: string): Promise<
       campaignName: string;
       statusOrType: string;
       contactName: string;
+      campaignId?: string;
+      contactId?: string;
+      venueId?: string;
+      isDateObtained?: boolean;
     }>
   >
 > {
@@ -579,7 +679,7 @@ export async function getExchangesForVenue(venueId: string): Promise<
         orderBy: { receivedAt: 'desc' },
       }),
     ]);
-    const items: Array<{ type: 'send' | 'response'; id: string; date: Date; subject: string; content: string; campaignName: string; statusOrType: string; contactName: string }> = [];
+    const items: Array<{ type: 'send' | 'response'; id: string; date: Date; subject: string; content: string; campaignName: string; statusOrType: string; contactName: string; campaignId?: string; contactId?: string; venueId?: string; isDateObtained?: boolean }> = [];
     for (const s of sends) {
       items.push({
         type: 'send',
@@ -602,6 +702,10 @@ export async function getExchangesForVenue(venueId: string): Promise<
         campaignName: r.campaign.name,
         statusOrType: r.type,
         contactName: `${r.contact.firstName} ${r.contact.lastName}`,
+        campaignId: r.campaignId,
+        contactId: r.contactId,
+        venueId: r.venueId,
+        isDateObtained: r.isDateObtained,
       });
     }
     items.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -787,6 +891,8 @@ export async function getCampaignSends(
       createdAt: Date;
       contact: { firstName: string; lastName: string; email: string | null };
       venue: { name: string };
+      contactId: string;
+      venueId: string;
     }>
   >
 > {
@@ -819,6 +925,8 @@ export async function getCampaignSends(
         createdAt: s.createdAt,
         contact: s.campaignRecipient.contact,
         venue: s.campaignRecipient.venue,
+        contactId: s.campaignRecipient.contactId,
+        venueId: s.campaignRecipient.venueId,
       })),
     };
   } catch (e) {

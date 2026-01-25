@@ -1,8 +1,11 @@
 import { requireAuth } from '@/lib/auth/utils';
+import { getUserSettings } from '@/actions/userSettingsActions';
 import { ScrapingSourceForm } from '@/components/scraping/ScrapingSourceForm';
 
 export default async function NewScrapingSourcePage() {
   await requireAuth();
+  const settingsRes = await getUserSettings();
+  const settings = settingsRes.success ? settingsRes.data : null;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
@@ -14,7 +17,7 @@ export default async function NewScrapingSourcePage() {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <ScrapingSourceForm mode="create" />
+        <ScrapingSourceForm mode="create" defaultFrequency={settings?.scrapingDefaultFrequency ?? null} />
       </div>
     </div>
   );

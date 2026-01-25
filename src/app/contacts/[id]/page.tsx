@@ -1,41 +1,18 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/utils';
+import { getUserSettings } from '@/actions/userSettingsActions';
+import { getEffectiveFicheConfig } from '@/lib/ficheFields';
 import { prisma } from '@/lib/prisma/client';
-import { ContactStatus } from '@prisma/client';
+import { getStatusLabel, getStatusClasses } from '@/lib/contacts/statusHelpers';
 import { EditableContactSection } from '@/components/contacts/EditableContactSection';
 import { ArchiveButton } from '@/components/contacts/ArchiveButton';
 import { ContactErrors } from '@/components/contacts/ContactErrors';
 import { ObsoleteActions } from '@/components/contacts/ObsoleteActions';
 import { getVenuesForContact } from '@/actions/contactVenueActions';
 import { getExchangesForContact } from '@/actions/campaignActions';
+import { getProjectsForSelect } from '@/actions/projectActions';
 import { ExchangeHistory } from '@/components/campaigns/ExchangeHistory';
-
-function getStatusLabel(status: ContactStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'Actif';
-    case 'ARCHIVED':
-      return 'Archivé';
-    case 'ERROR':
-      return 'Avec erreurs';
-    default:
-      return status;
-  }
-}
-
-function getStatusClasses(status: ContactStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800';
-    case 'ARCHIVED':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
-    case 'ERROR':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800';
-    default:
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
-  }
-}
 
 async function getContact(id: string, userId: string) {
   return prisma.contact.findFirst({
@@ -54,15 +31,20 @@ export default async function ContactDetailPage({
   const userId = await requireAuth();
   const { id } = await params;
 
-  const [contact, exchRes] = await Promise.all([
+  const [contact, exchRes, projectsRes, settingsRes] = await Promise.all([
     getContact(id, userId),
     getExchangesForContact(id),
+    getProjectsForSelect(),
+    getUserSettings(),
   ]);
+  const s = settingsRes.success ? settingsRes.data : null;
+  const { contact: fieldConfig } = getEffectiveFicheConfig(s?.ficheContactFields ?? null, s?.ficheVenueFields ?? null);
 
   if (!contact) {
     notFound();
   }
   const exchanges = exchRes.success ? exchRes.data : [];
+  const projects = projectsRes.success ? projectsRes.data : [];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
@@ -148,10 +130,10 @@ export default async function ContactDetailPage({
 
       {/* Historique des échanges (campagnes) */}
       <div className="mb-6">
-        <ExchangeHistory items={exchanges} emptyMessage="Aucun mail envoyé ou réponse reçue pour ce contact." />
+        <ExchangeHistory items={exchanges} emptyMessage="Aucun mail envoyé ou réponse reçue pour ce contact." projects={projects} />
       </div>
 
-      <EditableContactSection contact={contact} />
+      <EditableContactSection contact={contact} fieldConfig={fieldConfig} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma/client";
 import { z } from "zod";
+import { compare } from "bcryptjs";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -9,10 +10,8 @@ const loginSchema = z.object({
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Pas d'adapter Prisma avec JWT strategy + Credentials provider
-  // L'adapter Prisma est uniquement pour session strategy "database"
   session: {
-    strategy: "jwt", // JWT requis pour Credentials provider
+    strategy: "jwt",
   },
   providers: [
     Credentials({
@@ -28,11 +27,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
 
-          const { email } = parsed.data;
+          const { email, password } = parsed.data;
 
-          // Pour le MVP, on vérifie simplement que l'utilisateur existe
-          // TODO: Implémenter la vérification de mot de passe avec bcrypt
-          // Pour l'instant, on accepte n'importe quel mot de passe si l'utilisateur existe
           const user = await prisma.user.findUnique({
             where: { email },
           });
@@ -42,7 +38,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
 
-          console.log(`User found: ${user.email}, logging in...`);
+          if (!user.passwordHash) {
+            console.error(`User ${email} has no password (created before bcrypt).`);
+            return null;
+          }
+
+          const ok = await compare(password, user.passwordHash);
+          if (!ok) {
+            console.error(`Invalid password for ${email}`);
+            return null;
+          }
+
           return {
             id: user.id,
             email: user.email,
@@ -60,6 +66,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
     signOut: "/login",
     error: "/login",
+  },
+  logger: {
+    error(code: unknown, ...message: unknown[]) {
+      // Ancien cookie (AUTH_SECRET changé) : décrypt échoue, on redirige vers /login → pas de log.
+      const c = typeof code === 'string' ? code : (code as Error)?.name ?? '';
+      if (c === 'JWTSessionError') return;
+      console.error('[auth][error]', code, ...message);
+    },
+    warn(code, ...message) {
+      console.warn("[auth][warn]", code, ...message);
+    },
+    debug(code, ...message) {
+      // console.debug("[auth][debug]", code, ...message);
+    },
   },
   callbacks: {
     async jwt({ token, user }) {

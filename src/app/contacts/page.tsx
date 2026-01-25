@@ -1,46 +1,22 @@
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/utils';
 import { prisma } from '@/lib/prisma/client';
 import { ContactStatus } from '@prisma/client';
+import { getStatusLabel, getStatusClasses } from '@/lib/contacts/statusHelpers';
 import { StartScrapingButton } from '@/components/scraping/StartScrapingButton';
 import { ScrapingJobsList } from '@/components/scraping/ScrapingJobsList';
-
-function getStatusLabel(status: ContactStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'Actif';
-    case 'ARCHIVED':
-      return 'Archivé';
-    case 'ERROR':
-      return 'Avec erreurs';
-    default:
-      return status;
-  }
-}
-
-function getStatusClasses(status: ContactStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800';
-    case 'ARCHIVED':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
-    case 'ERROR':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800';
-    default:
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
-  }
-}
 
 async function getContacts(
   userId: string,
   search: string | null,
-  status: string | null
+  status: string | null,
+  role: string | null
 ) {
   const where: {
     userId: string;
     OR?: Array<{ [key: string]: { contains: string; mode: 'insensitive' } }>;
     status?: ContactStatus | { not: ContactStatus };
+    role?: { contains: string; mode: 'insensitive' };
   } = {
     userId,
   };
@@ -57,8 +33,11 @@ async function getContacts(
   if (status && ['ACTIVE', 'ARCHIVED', 'ERROR'].includes(status)) {
     where.status = status as ContactStatus;
   } else if (!status) {
-    // Par défaut, exclure les archivés si aucun filtre de statut n'est spécifié
     where.status = { not: 'ARCHIVED' as ContactStatus };
+  }
+
+  if (role && role.trim().length > 0) {
+    where.role = { contains: role.trim(), mode: 'insensitive' };
   }
 
   return prisma.contact.findMany({
@@ -72,15 +51,16 @@ async function getContacts(
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; status?: string }>;
+  searchParams?: Promise<{ q?: string; status?: string; role?: string }>;
 }) {
   const userId = await requireAuth();
 
   const params = (await searchParams) ?? {};
   const search = params.q ?? null;
   const status = params.status ?? null;
+  const role = params.role ?? null;
 
-  const contacts = await getContacts(userId, search, status);
+  const contacts = await getContacts(userId, search, status, role);
 
   // Récupérer les sources de scraping actives pour les contacts
   const activeSources = await prisma.scrapingSource.findMany({
@@ -94,8 +74,8 @@ export default async function ContactsPage({
     },
   });
 
-  // Si aucun contact et aucune recherche, proposer de créer le premier contact
-  if (contacts.length === 0 && !search && !status) {
+  // Si aucun contact et aucun filtre, proposer de créer le premier contact
+  if (contacts.length === 0 && !search && !status && !role) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex justify-between items-center mb-6">
@@ -104,7 +84,7 @@ export default async function ContactsPage({
             href="/contacts/new"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            Nouveau contact
+            Créer un nouveau contact
           </Link>
         </div>
         <div className="text-center py-12">
@@ -125,11 +105,11 @@ export default async function ContactsPage({
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Mes contacts</h1>
         <Link
-          href="/contacts/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          Nouveau contact
-        </Link>
+            href="/contacts/new"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Créer un nouveau contact
+          </Link>
       </div>
 
       {/* Section Scraping */}
@@ -202,6 +182,23 @@ export default async function ContactsPage({
             </select>
           </div>
 
+          <div>
+            <label
+              htmlFor="role"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Rôle
+            </label>
+            <input
+              type="text"
+              id="role"
+              name="role"
+              defaultValue={role ?? ''}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Ex: Programmateur, Manager"
+            />
+          </div>
+
           <div className="flex gap-2">
             <button
               type="submit"
@@ -209,14 +206,13 @@ export default async function ContactsPage({
             >
               Filtrer
             </button>
-            {(search || status) && (
-              <button
-                type="button"
-                onClick={() => redirect('/contacts')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            {(search || status || role) && (
+              <Link
+                href="/contacts"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 inline-block text-center"
               >
                 Réinitialiser
-              </button>
+              </Link>
             )}
           </div>
         </form>

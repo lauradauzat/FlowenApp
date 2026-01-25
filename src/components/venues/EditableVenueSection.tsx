@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { VenueForm } from './VenueForm';
+import type { VenueFieldKey, FicheFieldConfig } from '@/lib/ficheFields';
 
 type Venue = {
   id: string;
@@ -16,9 +17,10 @@ type Venue = {
 
 type EditableVenueSectionProps = {
   venue: Venue;
+  fieldConfig?: Record<VenueFieldKey, FicheFieldConfig>;
 };
 
-export function EditableVenueSection({ venue }: EditableVenueSectionProps) {
+export function EditableVenueSection({ venue, fieldConfig }: EditableVenueSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -106,6 +108,7 @@ export function EditableVenueSection({ venue }: EditableVenueSectionProps) {
               notes: venue.notes,
             }}
             onSuccess={handleSuccess}
+            fieldConfig={fieldConfig}
           />
         </div>
       )}

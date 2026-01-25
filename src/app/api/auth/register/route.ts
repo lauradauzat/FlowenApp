@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/client";
 import { z } from "zod";
+import { hash } from "bcryptjs";
 
 const registerSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(6),
 });
+
+const SALT_ROUNDS = 10;
 
 export async function POST(request: Request) {
   try {
@@ -20,7 +23,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, email } = parsed.data;
+    const { name, email, password } = parsed.data;
 
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await prisma.user.findUnique({
@@ -34,20 +37,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Créer l'utilisateur
-    // Note: Pour un MVP, on stocke le mot de passe en clair
-    // TODO: Implémenter le hashage avec bcrypt dans une version future
+    const passwordHash = await hash(password, SALT_ROUNDS);
+
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        // Pour l'instant, on ne stocke pas le mot de passe dans User
-        // On utilisera un système de credentials simple
+        passwordHash,
       },
     });
-
-    // TODO: Créer un Account de type "credentials" avec le mot de passe hashé
-    // Pour l'instant, on crée juste l'utilisateur
 
     return NextResponse.json(
       { message: "Inscription réussie", userId: user.id },

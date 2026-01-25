@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/utils';
+import { getUserSettings } from '@/actions/userSettingsActions';
+import { getEffectiveFicheConfig } from '@/lib/ficheFields';
 import { prisma } from '@/lib/prisma/client';
 import { VenueStatus } from '@prisma/client';
 import { EditableVenueSection } from '@/components/venues/EditableVenueSection';
@@ -10,6 +12,7 @@ import { AddContactToVenue } from '@/components/venues/AddContactToVenue';
 import { CreateContactForVenue } from '@/components/venues/CreateContactForVenue';
 import { getContactsForVenue } from '@/actions/contactVenueActions';
 import { getExchangesForVenue } from '@/actions/campaignActions';
+import { getProjectsForSelect } from '@/actions/projectActions';
 import { ExchangeHistory } from '@/components/campaigns/ExchangeHistory';
 
 function getStatusLabel(status: VenueStatus): string {
@@ -55,15 +58,20 @@ export default async function VenueDetailPage({
   const userId = await requireAuth();
   const { id } = await params;
 
-  const [venue, exchRes] = await Promise.all([
+  const [venue, exchRes, projectsRes, settingsRes] = await Promise.all([
     getVenue(id, userId),
     getExchangesForVenue(id),
+    getProjectsForSelect(),
+    getUserSettings(),
   ]);
+  const s = settingsRes.success ? settingsRes.data : null;
+  const { venue: fieldConfig } = getEffectiveFicheConfig(s?.ficheContactFields ?? null, s?.ficheVenueFields ?? null);
 
   if (!venue) {
     notFound();
   }
   const exchanges = exchRes.success ? exchRes.data : [];
+  const projects = projectsRes.success ? projectsRes.data : [];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
@@ -180,10 +188,10 @@ export default async function VenueDetailPage({
 
       {/* Historique des échanges (campagnes) */}
       <div className="mb-6">
-        <ExchangeHistory items={exchanges} emptyMessage="Aucun mail envoyé ou réponse reçue pour cette salle." />
+        <ExchangeHistory items={exchanges} emptyMessage="Aucun mail envoyé ou réponse reçue pour cette salle." projects={projects} />
       </div>
 
-      <EditableVenueSection venue={venue} />
+      <EditableVenueSection venue={venue} fieldConfig={fieldConfig} />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ContactForm } from './ContactForm';
+import type { ContactFieldKey, FicheFieldConfig } from '@/lib/ficheFields';
 
 type Contact = {
   id: string;
@@ -15,9 +16,10 @@ type Contact = {
 
 type EditableContactSectionProps = {
   contact: Contact;
+  fieldConfig?: Record<ContactFieldKey, FicheFieldConfig>;
 };
 
-export function EditableContactSection({ contact }: EditableContactSectionProps) {
+export function EditableContactSection({ contact, fieldConfig }: EditableContactSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -104,6 +106,7 @@ export function EditableContactSection({ contact }: EditableContactSectionProps)
               notes: contact.notes,
             }}
             onSuccess={handleSuccess}
+            fieldConfig={fieldConfig}
           />
         </div>
       )}

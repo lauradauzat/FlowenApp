@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   setRecipientsFromFilters,
   launchCampaign,
@@ -10,8 +11,10 @@ import {
   retryCampaignSend,
   getCampaignSends,
   sendManualRelances,
+  createCampaignResponse,
 } from '@/actions/campaignActions';
 import { CAPACITY_CATEGORIES } from '@/lib/utils/templateVariables';
+import { categorizeSendError } from '@/lib/errors/campaignSendErrors';
 
 type RecipientClassification = 'repondant' | 'non_repondant' | 'en_attente';
 
@@ -56,6 +59,15 @@ type Send = {
   errorMessage: string | null;
   contact: { firstName: string; lastName: string; email: string | null };
   venue: { name: string };
+  contactId: string;
+  venueId: string;
+};
+
+type RelanceDefaults = {
+  firstDelayDays: number | null;
+  nextDelayDays: number | null;
+  max: number | null;
+  templateId: string | null;
 };
 
 export function CampaignDetail({
@@ -63,11 +75,13 @@ export function CampaignDetail({
   filterOptions,
   initialSends,
   mailTemplates = [],
+  relanceDefaults,
 }: {
   campaign: Campaign;
   filterOptions: FilterOptions;
   initialSends?: Send[] | undefined;
   mailTemplates?: MailTemplateOption[];
+  relanceDefaults?: RelanceDefaults;
 }) {
   const router = useRouter();
   const [campaign, setCampaign] = useState(initialCampaign);
@@ -80,29 +94,45 @@ export function CampaignDetail({
   const [preview, setPreview] = useState<{ subject: string; body: string } | null>(null);
   const [previewRecipient, setPreviewRecipient] = useState<string | null>(null);
   const [sendFilter, setSendFilter] = useState<'all' | 'SENT' | 'FAILED' | 'PENDING'>('all');
-  // Epic 7: paramètres relances (DRAFT)
+  // Epic 7/10: paramètres relances (DRAFT) — préremplis via relanceDefaults si la campagne n'a pas de valeur
   const [relanceEnabled, setRelanceEnabled] = useState(!!initialCampaign.relanceEnabled);
-  const [relanceFirstDelayDays, setRelanceFirstDelayDays] = useState(String(initialCampaign.relanceFirstDelayDays ?? ''));
-  const [relanceNextDelayDays, setRelanceNextDelayDays] = useState(String(initialCampaign.relanceNextDelayDays ?? ''));
-  const [relanceMax, setRelanceMax] = useState(String(initialCampaign.relanceMax ?? ''));
-  const [relanceTemplateId, setRelanceTemplateId] = useState<string>(initialCampaign.relanceTemplateId ?? '');
+  const [relanceFirstDelayDays, setRelanceFirstDelayDays] = useState(
+    String(initialCampaign.relanceFirstDelayDays ?? relanceDefaults?.firstDelayDays ?? '')
+  );
+  const [relanceNextDelayDays, setRelanceNextDelayDays] = useState(
+    String(initialCampaign.relanceNextDelayDays ?? relanceDefaults?.nextDelayDays ?? '')
+  );
+  const [relanceMax, setRelanceMax] = useState(
+    String(initialCampaign.relanceMax ?? relanceDefaults?.max ?? '')
+  );
+  const [relanceTemplateId, setRelanceTemplateId] = useState<string>(
+    initialCampaign.relanceTemplateId ?? relanceDefaults?.templateId ?? ''
+  );
   // Epic 7: filtre classification (RUNNING/COMPLETED)
   const [classFilter, setClassFilter] = useState<RecipientClassification | 'all'>('all');
   // Epic 7: relance manuelle (cases à cocher, template)
   const [relanceSelected, setRelanceSelected] = useState<Set<string>>(new Set());
   const [relanceTemplateChoice, setRelanceTemplateChoice] = useState<string>('');
   const [relanceSending, setRelanceSending] = useState(false);
+  // Epic 6: Ajouter une réponse (RUNNING/COMPLETED)
+  const [addResponseOpen, setAddResponseOpen] = useState(false);
+  const [addResponseRecipientId, setAddResponseRecipientId] = useState('');
+  const [addResponseType, setAddResponseType] = useState<'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'>('NEUTRAL');
+  const [addResponseSubject, setAddResponseSubject] = useState('');
+  const [addResponseContent, setAddResponseContent] = useState('');
+  const [addResponseReceivedAt, setAddResponseReceivedAt] = useState(new Date().toISOString().slice(0, 16));
+  const [addResponseLoading, setAddResponseLoading] = useState(false);
 
-  // Synchroniser avec les données serveur (après refresh)
+  // Synchroniser avec les données serveur (après refresh) ; en DRAFT, les relanceDefaults préremplissent si la campagne n'a pas de valeur
   useEffect(() => {
     setCampaign(initialCampaign);
     if (initialSends) setSends(initialSends);
     setRelanceEnabled(!!initialCampaign.relanceEnabled);
-    setRelanceFirstDelayDays(String(initialCampaign.relanceFirstDelayDays ?? ''));
-    setRelanceNextDelayDays(String(initialCampaign.relanceNextDelayDays ?? ''));
-    setRelanceMax(String(initialCampaign.relanceMax ?? ''));
-    setRelanceTemplateId(initialCampaign.relanceTemplateId ?? '');
-  }, [initialCampaign, initialSends]);
+    setRelanceFirstDelayDays(String(initialCampaign.relanceFirstDelayDays ?? relanceDefaults?.firstDelayDays ?? ''));
+    setRelanceNextDelayDays(String(initialCampaign.relanceNextDelayDays ?? relanceDefaults?.nextDelayDays ?? ''));
+    setRelanceMax(String(initialCampaign.relanceMax ?? relanceDefaults?.max ?? ''));
+    setRelanceTemplateId(initialCampaign.relanceTemplateId ?? relanceDefaults?.templateId ?? '');
+  }, [initialCampaign, initialSends, relanceDefaults]);
 
   // Polling process-send quand RUNNING
   useEffect(() => {
@@ -183,6 +213,38 @@ export function CampaignDetail({
     setRelanceSending(false);
     if (res.success) {
       setRelanceSelected(new Set());
+      router.refresh();
+    } else {
+      setError(res.error?.message ?? 'Erreur');
+    }
+  };
+
+  const doAddResponse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const r = campaign.recipients.find((x) => x.id === addResponseRecipientId);
+    if (!r || !addResponseContent.trim()) {
+      setError('Choisissez un destinataire et saisissez le contenu.');
+      return;
+    }
+    setAddResponseLoading(true);
+    setError(null);
+    const res = await createCampaignResponse({
+      campaignId: campaign.id,
+      campaignRecipientId: addResponseRecipientId,
+      contactId: r.contactId,
+      venueId: r.venueId,
+      type: addResponseType,
+      subject: addResponseSubject.trim() || null,
+      content: addResponseContent.trim(),
+      receivedAt: new Date(addResponseReceivedAt),
+    });
+    setAddResponseLoading(false);
+    if (res.success) {
+      setAddResponseOpen(false);
+      setAddResponseRecipientId('');
+      setAddResponseContent('');
+      setAddResponseSubject('');
+      setAddResponseReceivedAt(new Date().toISOString().slice(0, 16));
       router.refresh();
     } else {
       setError(res.error?.message ?? 'Erreur');
@@ -523,6 +585,94 @@ export function CampaignDetail({
             </ul>
           </section>
 
+          {/* Epic 6: Ajouter une réponse (saisie manuelle) */}
+          {campaign.recipients.length > 0 && (
+            <section className="border rounded-lg p-4">
+              <h2 className="font-medium mb-2">Ajouter une réponse</h2>
+              {!addResponseOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setAddResponseOpen(true)}
+                  className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
+                >
+                  Saisir une réponse reçue
+                </button>
+              ) : (
+                <form onSubmit={doAddResponse} className="space-y-3 max-w-md">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Destinataire</label>
+                    <select
+                      value={addResponseRecipientId}
+                      onChange={(e) => setAddResponseRecipientId(e.target.value)}
+                      className="w-full border rounded px-2 py-1 text-sm"
+                      required
+                    >
+                      <option value="">— Choisir —</option>
+                      {campaign.recipients.map((r) => (
+                        <option key={r.id} value={r.id}>{r.contact.firstName} {r.contact.lastName} — {r.venue.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Type</label>
+                    <select
+                      value={addResponseType}
+                      onChange={(e) => setAddResponseType(e.target.value as 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL')}
+                      className="w-full border rounded px-2 py-1 text-sm"
+                    >
+                      <option value="POSITIVE">Positif</option>
+                      <option value="NEGATIVE">Négatif</option>
+                      <option value="NEUTRAL">Neutre</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Sujet (optionnel)</label>
+                    <input
+                      type="text"
+                      value={addResponseSubject}
+                      onChange={(e) => setAddResponseSubject(e.target.value)}
+                      className="w-full border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Contenu *</label>
+                    <textarea
+                      value={addResponseContent}
+                      onChange={(e) => setAddResponseContent(e.target.value)}
+                      className="w-full border rounded px-2 py-1 text-sm min-h-[80px]"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Date de réception</label>
+                    <input
+                      type="datetime-local"
+                      value={addResponseReceivedAt}
+                      onChange={(e) => setAddResponseReceivedAt(e.target.value)}
+                      className="w-full border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={addResponseLoading}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {addResponseLoading ? 'Enregistrement...' : 'Enregistrer'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setAddResponseOpen(false); setError(null); }}
+                      className="px-3 py-1.5 text-gray-600 text-sm hover:underline"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              )}
+            </section>
+          )}
+
           {campaign.relanceEnabled && (
             <section className="border rounded-lg p-4">
               <h2 className="font-medium mb-2">Relance manuelle</h2>
@@ -572,7 +722,7 @@ export function CampaignDetail({
 
           <section className="border rounded-lg p-4">
             <h2 className="font-medium mb-2">Envois</h2>
-            <div className="flex gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               {(['all', 'SENT', 'FAILED', 'PENDING'] as const).map((f) => (
                 <button
                   key={f}
@@ -583,28 +733,67 @@ export function CampaignDetail({
                   {f === 'all' ? 'Tous' : f === 'SENT' ? 'Envoyés' : f === 'FAILED' ? 'Échecs' : 'En attente'}
                 </button>
               ))}
+              {sends.filter((s) => s.status === 'FAILED').length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const failed = sends.filter((s) => s.status === 'FAILED');
+                    const header = 'Contact;Salle;Email;Erreur;Type;Suggestion\n';
+                    const rows = failed.map((s) => {
+                      const cat = categorizeSendError(s.errorMessage);
+                      const csv = (v: string) => `"${(v || '').replace(/"/g, '""')}"`;
+                      return [s.contact.firstName + ' ' + s.contact.lastName, s.venue.name, s.contact.email || '', s.errorMessage || '', cat.label, cat.suggestion].map(csv).join(';');
+                    });
+                    const blob = new Blob(['\uFEFF' + header + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `echecs-campagne-${campaign.name.replace(/\s+/g, '-')}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                  }}
+                  className="text-xs text-gray-600 hover:underline"
+                >
+                  Exporter les échecs (CSV)
+                </button>
+              )}
             </div>
             <ul className="space-y-2 text-sm max-h-64 overflow-y-auto">
-              {filteredSends.map((s) => (
-                <li key={s.id} className="flex justify-between items-start gap-2 border-b pb-2">
-                  <div>
-                    <span>{s.contact.firstName} {s.contact.lastName} — {s.venue.name}</span>
-                    <span className={`ml-2 px-1 rounded ${s.status === 'SENT' ? 'bg-green-100' : s.status === 'FAILED' ? 'bg-red-100' : 'bg-amber-100'}`}>
-                      {s.status}
-                    </span>
-                    {s.errorMessage && <span className="block text-red-600 text-xs">{s.errorMessage}</span>}
-                  </div>
-                  {s.status === 'FAILED' && (
-                    <button
-                      type="button"
-                      onClick={() => retry(s.id)}
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      Réessayer
-                    </button>
-                  )}
-                </li>
-              ))}
+              {filteredSends.map((s) => {
+                const cat = s.status === 'FAILED' ? categorizeSendError(s.errorMessage) : null;
+                return (
+                  <li key={s.id} className="flex justify-between items-start gap-2 border-b pb-2">
+                    <div className="min-w-0">
+                      <span>{s.contact.firstName} {s.contact.lastName} — {s.venue.name}</span>
+                      <span className={`ml-2 px-1 rounded ${s.status === 'SENT' ? 'bg-green-100' : s.status === 'FAILED' ? 'bg-red-100' : 'bg-amber-100'}`}>
+                        {s.status}
+                      </span>
+                      {s.errorMessage && <span className="block text-red-600 text-xs mt-0.5">{s.errorMessage}</span>}
+                      {cat && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          <strong>{cat.label}</strong> — {cat.suggestion}
+                        </p>
+                      )}
+                    </div>
+                    {s.status === 'FAILED' && (
+                      <div className="flex flex-col gap-1 items-end shrink-0">
+                        <Link
+                          href={`/contacts/${s.contactId}`}
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Corriger le contact
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => retry(s.id)}
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Réessayer
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         </>

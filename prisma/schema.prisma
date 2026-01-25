@@ -18,6 +18,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime? @map("email_verified")
   image         String?
+  passwordHash  String?   @map("password_hash")
 
   accounts Account[]
   sessions Session[]
@@ -29,8 +30,43 @@ model User {
   mailTemplates MailTemplate[]
   campaigns     Campaign[]
   tourDates     TourDate[]
+  userSettings  UserSettings?
 
   @@map("users")
+}
+
+// Epic 10: Paramètres utilisateur (relances par défaut, tableau de bord)
+model UserSettings {
+  id     String  @id @default(cuid())
+  userId String  @unique @map("user_id")
+
+  relanceFirstDelayDays Int?    @map("relance_first_delay_days")
+  relanceNextDelayDays  Int?    @map("relance_next_delay_days")
+  relanceMax            Int?    @map("relance_max")
+  relanceTemplateId     String? @map("relance_template_id")
+
+  dashboardLimitNextSteps  Int?  @map("dashboard_limit_next_steps")
+  dashboardLimitCampaigns  Int?  @map("dashboard_limit_campaigns")
+  dashboardLimitResponses  Int?  @map("dashboard_limit_responses")
+  dashboardShowNextSteps   Boolean? @map("dashboard_show_next_steps")
+  dashboardShowResponses   Boolean? @map("dashboard_show_responses")
+  dashboardShowCampaigns   Boolean? @map("dashboard_show_campaigns")
+  dashboardShowMesProjets  Boolean? @map("dashboard_show_mes_projets")
+
+  // Story 10.1: paramètres scraping (mise à jour auto globale, fréquence par défaut nouvelles sources)
+  scrapingAutoUpdateEnabled Boolean?  @map("scraping_auto_update_enabled")  // true = activé
+  scrapingDefaultFrequency  String?   @map("scraping_default_frequency")    // daily, weekly, monthly, null=manual
+
+  // Story 10.3: paramètres fiches contact/venue (visible, required, defaultValue par champ)
+  ficheContactFields Json? @map("fiche_contact_fields")
+  ficheVenueFields   Json? @map("fiche_venue_fields")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
 }
 
 model Account {
