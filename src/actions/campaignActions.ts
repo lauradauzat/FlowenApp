@@ -957,7 +957,12 @@ export async function retryCampaignSend(input: unknown): Promise<ActionResult<{ 
     if (!email) {
       return { success: false, error: { code: 'VALIDATION_ERROR', message: 'Contact sans email' } };
     }
-    const result = await sendEmail({ to: email, subject: send.subject, body: send.body });
+    const sendPrefs = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { mailingFrom: true },
+    });
+    const mailFrom = sendPrefs?.mailingFrom?.trim() || undefined;
+    const result = await sendEmail({ to: email, subject: send.subject, body: send.body, from: mailFrom });
     const newSend = await prisma.campaignSend.create({
       data: {
         campaignRecipientId: send.campaignRecipientId,
@@ -1004,6 +1009,12 @@ export async function sendManualRelances(input: unknown): Promise<
       return { success: false, error: { code: 'FORBIDDEN', message: 'Campagne non lancée' } };
     }
 
+    const sendPrefs = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { mailingFrom: true },
+    });
+    const mailFrom = sendPrefs?.mailingFrom?.trim() || undefined;
+
     let template: { subject: string; body: string; variants: Array<{ capacityCategory: string | null; region: string | null; style: string | null; subject: string; body: string; order: number }> };
     if (v.templateId) {
       const t = await prisma.mailTemplate.findFirst({
@@ -1038,7 +1049,7 @@ export async function sendManualRelances(input: unknown): Promise<
       const data = buildTemplateData(r.contact, r.venue, c.project ? { name: c.project.name, type: c.project.type } : undefined);
       const { subject, body } = renderTemplate(s, b, data);
 
-      const result = await sendEmail({ to: email, subject, body });
+      const result = await sendEmail({ to: email, subject, body, from: mailFrom });
       await prisma.campaignSend.create({
         data: {
           campaignRecipientId: r.id,

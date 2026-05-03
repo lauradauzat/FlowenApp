@@ -4,6 +4,7 @@ import type { FicheFieldConfig } from '@/lib/ficheFields';
 import { prisma } from '@/lib/prisma/client';
 import { requireAuth } from '@/lib/auth/utils';
 import { updateUserSettingsSchema } from '@/lib/validations/userSettings';
+import { validateAndNormalizeMailingFrom } from '@/lib/validations/mailing';
 
 type ActionResult<T> = {
   success: boolean;
@@ -29,6 +30,8 @@ export type UserSettingsData = {
   ficheContactFields: Record<string, FicheFieldConfig> | null;
   /** Story 10.3: config champs fiche venue */
   ficheVenueFields: Record<string, FicheFieldConfig> | null;
+  /** Expéditeur campagnes ; null = EMAIL_FROM serveur */
+  mailingFrom: string | null;
 };
 
 const DEFAULTS: UserSettingsData = {
@@ -47,6 +50,7 @@ const DEFAULTS: UserSettingsData = {
   scrapingDefaultFrequency: null,
   ficheContactFields: null,
   ficheVenueFields: null,
+  mailingFrom: null,
 };
 
 function toFicheFields(value: unknown): Record<string, FicheFieldConfig> | null {
@@ -71,6 +75,7 @@ function toData(row: {
   scrapingDefaultFrequency: string | null;
   ficheContactFields?: unknown;
   ficheVenueFields?: unknown;
+  mailingFrom?: string | null;
 } | null): UserSettingsData {
   if (!row) return DEFAULTS;
   return {
@@ -89,6 +94,7 @@ function toData(row: {
     scrapingDefaultFrequency: row.scrapingDefaultFrequency ?? DEFAULTS.scrapingDefaultFrequency,
     ficheContactFields: toFicheFields(row.ficheContactFields),
     ficheVenueFields: toFicheFields(row.ficheVenueFields),
+    mailingFrom: row.mailingFrom ?? DEFAULTS.mailingFrom,
   };
 }
 
@@ -117,6 +123,7 @@ export async function updateUserSettings(input: unknown): Promise<ActionResult<v
     const dash = parsed.data.dashboard;
     const scrap = parsed.data.scraping;
     const fiche = parsed.data.fiche;
+    const mailing = parsed.data.mailing;
 
     const data: Record<string, unknown> = {};
     if (fiche) {
@@ -141,6 +148,13 @@ export async function updateUserSettings(input: unknown): Promise<ActionResult<v
     if (scrap) {
       if (scrap.autoUpdateEnabled !== undefined) data.scrapingAutoUpdateEnabled = scrap.autoUpdateEnabled;
       if (scrap.defaultFrequency !== undefined) data.scrapingDefaultFrequency = scrap.defaultFrequency === '' ? null : (scrap.defaultFrequency || null);
+    }
+    if (mailing?.from !== undefined) {
+      const norm = validateAndNormalizeMailingFrom(mailing.from);
+      if (!norm.ok) {
+        return { success: false, error: { code: 'VALIDATION_ERROR', message: norm.message } };
+      }
+      data.mailingFrom = norm.value;
     }
 
     if (Object.keys(data).length === 0) {

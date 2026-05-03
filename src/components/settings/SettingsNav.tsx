@@ -3,6 +3,7 @@ import Link from 'next/link';
 const links = [
   { href: '/settings/scraping', label: 'Scraping' },
   { href: '/settings/relances', label: 'Relances' },
+  { href: '/settings/mailing', label: 'Mailing' },
   { href: '/settings/dashboard', label: 'Tableau de bord' },
   { href: '/settings/fiches', label: 'Fiches' },
 ];

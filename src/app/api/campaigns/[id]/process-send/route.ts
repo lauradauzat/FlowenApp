@@ -20,6 +20,12 @@ export async function POST(
     if (!campaign) {
       return NextResponse.json({ error: 'Campagne non trouvée' }, { status: 404 });
     }
+
+    const sendSettings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { mailingFrom: true },
+    });
+    const mailFrom = sendSettings?.mailingFrom?.trim() || undefined;
     if (campaign.status !== 'RUNNING') {
       return NextResponse.json(
         { error: 'La campagne n\'est pas en cours d\'envoi' },
@@ -53,6 +59,7 @@ export async function POST(
         to: email,
         subject: s.subject,
         body: s.body,
+        from: mailFrom,
       });
       await prisma.campaignSend.update({
         where: { id: s.id },

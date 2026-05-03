@@ -42,6 +42,20 @@ export async function processRelances(): Promise<ProcessRelancesResult> {
     },
   });
 
+  const userIds = [...new Set(campaigns.map((x) => x.userId))];
+  const mailingRows =
+    userIds.length === 0
+      ? []
+      : await prisma.userSettings.findMany({
+          where: { userId: { in: userIds } },
+          select: { userId: true, mailingFrom: true },
+        });
+  const mailingFromByUser = new Map<string, string | undefined>();
+  for (const row of mailingRows) {
+    const v = row.mailingFrom?.trim();
+    mailingFromByUser.set(row.userId, v && v.length > 0 ? v : undefined);
+  }
+
   const now = new Date();
 
   for (const c of campaigns) {
@@ -97,7 +111,12 @@ export async function processRelances(): Promise<ProcessRelancesResult> {
       const data = buildTemplateData(r.contact, r.venue, c.project ? { name: c.project.name, type: c.project.type } : undefined);
       const { subject, body } = renderTemplate(s, b, data);
 
-      const result = await sendEmail({ to: email, subject, body });
+      const result = await sendEmail({
+        to: email,
+        subject,
+        body,
+        from: mailingFromByUser.get(c.userId),
+      });
       await prisma.campaignSend.create({
         data: {
           campaignRecipientId: r.id,

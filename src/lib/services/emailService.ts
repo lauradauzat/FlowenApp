@@ -8,13 +8,17 @@ export type SendEmailParams = {
   to: string;
   subject: string;
   body: string; // texte brut
+  /** Si défini et non vide, remplace EMAIL_FROM pour cet envoi (paramètre utilisateur Resend). */
+  from?: string | null;
 };
 
 export type SendEmailResult = { ok: true } | { ok: false; error: string };
 
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? 'Flowen <onboarding@resend.dev>';
+  const fallback = process.env.EMAIL_FROM ?? 'Flowen <onboarding@resend.dev>';
+  const override = params.from?.trim();
+  const from = override && override.length > 0 ? override : fallback;
 
   if (!apiKey || apiKey === '') {
     return {

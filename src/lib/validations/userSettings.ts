@@ -45,4 +45,10 @@ export const updateUserSettingsSchema = z.object({
         .optional(),
     })
     .optional(),
+  mailing: z
+    .object({
+      /** Email ou « Nom <email> » ; vide pour utiliser EMAIL_FROM serveur */
+      from: z.string().max(255).optional().nullable(),
+    })
+    .optional(),
 });
