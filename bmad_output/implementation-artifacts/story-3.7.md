@@ -1,6 +1,6 @@
 # Story 3.7: Identification visuelle des fiches avec erreurs
 
-Status: review
+Status: done
 
 ## Story
 
@@ -151,6 +151,13 @@ Claude Sonnet 4.5
   - ✓ Section d'erreurs avec icône d'alerte, liste des erreurs critiques et avertissements
   - ✓ Correction possible via le formulaire d'édition existant (qui valide automatiquement après modification)
 
+### Code Review Notes
+
+- **Tests manquants** : Ajout de tests unitaires pour les fonctions de validation
+  - ✓ Tests pour `validateContact` dans `contactValidation.test.ts`
+  - ✓ Tests pour `validateVenue` dans `venueValidation.test.ts`
+  - ✓ Vérification de la détection des erreurs critiques (missing, invalid) et des avertissements (warning)
+
 ### File List
 
 **Validations :**
@@ -170,3 +177,13 @@ Claude Sonnet 4.5
 - `src/app/venues/page.tsx` — Ajout du badge "⚠️ Erreurs" pour les salles avec erreurs
 - `src/app/contacts/[id]/page.tsx` — Affichage des erreurs détectées via `ContactErrors`
 - `src/app/venues/[id]/page.tsx` — Affichage des erreurs détectées via `VenueErrors`
+
+**Tests :**
+- `src/lib/validations/contactValidation.test.ts` — Tests unitaires pour `validateContact`
+  - ✓ Test de validation réussie
+  - ✓ Tests de détection d'erreurs (prénom/nom manquants, email invalide)
+  - ✓ Test d'avertissement (pas d'email ni téléphone)
+- `src/lib/validations/venueValidation.test.ts` — Tests unitaires pour `validateVenue`
+  - ✓ Test de validation réussie
+  - ✓ Tests de détection d'erreurs (nom manquant, URL invalide, capacité négative)
+  - ✓ Test d'avertissement (pas d'adresse ni région)

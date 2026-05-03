@@ -1,6 +1,6 @@
 # Story 3.4: Visualisation des connexions entre contacts et salles
 
-Status: review
+Status: done
 
 ## Story
 
@@ -131,6 +131,12 @@ Claude Sonnet 4.5
   - ✓ Message d'état vide si aucune connexion
   - ✓ Message de recherche vide si aucun résultat
 
+### Code Review Notes
+
+- **Tests manquants** : Ajout de tests pour `getAllConnections` dans `contactVenueActions.test.ts`
+  - ✓ Test de récupération avec filtrage userId et multi-tenancy
+  - ✓ Vérification de la structure des données retournées (venuesWithContacts, contactsWithVenues)
+
 ### File List
 
 **Server Actions :**
@@ -142,3 +148,6 @@ Claude Sonnet 4.5
 **Composants :**
 - `src/components/connections/ConnectionsView.tsx` — Composant client pour afficher et filtrer les connexions
 - `src/components/connections/ConnectionsSearch.tsx` — Composant client pour la recherche/filtrage en temps réel
+
+**Tests :**
+- `src/actions/contactVenueActions.test.ts` — Tests ajoutés pour `getAllConnections` avec vérification du filtrage userId et multi-tenancy

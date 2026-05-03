@@ -1,6 +1,6 @@
 # Story 3.3: Connexions relationnelles entre contacts et salles
 
-Status: review
+Status: done
 
 ## Story
 
@@ -152,6 +152,7 @@ Claude Sonnet 4.5
   - ✓ Composant Server `VenuesList` affiche la liste des salles avec informations essentielles (nom, région, capacité, style)
   - ✓ Liens cliquables vers chaque salle pour navigation bidirectionnelle
   - ⚠️ Subtask 6.4 (retirer une connexion depuis la page contact) : non implémentée pour MVP (peut être ajoutée plus tard si nécessaire)
+- **Code review (2025-01-26)** : Corrections appliquées — tests addContactToVenue/removeContactFromVenue/getContactsForVenue/getVenuesForContact/ownership, gestion erreur connexion inexistante dans `removeContactFromVenue`, File List complétée (`getAllConnections`). Status → `done`.
 
 ### File List
 
@@ -165,7 +166,8 @@ Claude Sonnet 4.5
 - `src/lib/validations/contactVenue.ts` — Schémas Zod `addContactToVenueSchema`, `removeContactFromVenueSchema`
 
 **Server Actions :**
-- `src/actions/contactVenueActions.ts` — Server Actions `addContactToVenue`, `removeContactFromVenue`, `getContactsForVenue`, `getVenuesForContact`
+- `src/actions/contactVenueActions.ts` — Server Actions `addContactToVenue`, `removeContactFromVenue`, `getContactsForVenue`, `getVenuesForContact`, `getAllConnections`
+- `src/actions/contactVenueActions.test.ts` — Tests addContactToVenue, removeContactFromVenue, getContactsForVenue, getVenuesForContact, ownership/multi‑tenancy
 
 **Composants :**
 - `src/components/venues/AddContactToVenue.tsx` — Composant pour ajouter un contact existant à une salle

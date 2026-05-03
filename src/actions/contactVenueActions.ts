@@ -172,6 +172,26 @@ export async function removeContactFromVenue(
       throw new NotFoundError('Salle non trouvée');
     }
 
+    // Vérifier si la connexion existe avant de supprimer
+    const existing = await prisma.contactVenue.findUnique({
+      where: {
+        contactId_venueId: {
+          contactId: validated.contactId,
+          venueId: validated.venueId,
+        },
+      },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Cette connexion n\'existe pas',
+        },
+      };
+    }
+
     // Supprimer la connexion
     const deleted = await prisma.contactVenue.delete({
       where: {

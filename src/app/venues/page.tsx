@@ -2,34 +2,9 @@ import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/utils';
 import { prisma } from '@/lib/prisma/client';
 import { VenueStatus } from '@prisma/client';
+import { getVenueStatusLabel, getVenueStatusClasses } from '@/lib/contacts/statusHelpers';
 import { StartScrapingButton } from '@/components/scraping/StartScrapingButton';
 import { ScrapingJobsList } from '@/components/scraping/ScrapingJobsList';
-
-function getStatusLabel(status: VenueStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'Active';
-    case 'ARCHIVED':
-      return 'Archivée';
-    case 'ERROR':
-      return 'Avec erreurs';
-    default:
-      return status;
-  }
-}
-
-function getStatusClasses(status: VenueStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800';
-    case 'ARCHIVED':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
-    case 'ERROR':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800';
-    default:
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
-  }
-}
 
 async function getVenues(
   userId: string,
@@ -117,7 +92,7 @@ export default async function VenuesPage({
             href="/venues/new"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            Nouvelle salle
+            Créer une nouvelle salle
           </Link>
         </div>
         <div className="text-center py-12">
@@ -316,8 +291,8 @@ export default async function VenuesPage({
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     <div className="flex items-center gap-2">
-                      <span className={getStatusClasses(venue.status)}>
-                        {getStatusLabel(venue.status)}
+                      <span className={getVenueStatusClasses(venue.status)}>
+                        {getVenueStatusLabel(venue.status)}
                       </span>
                       {venue.status === 'ERROR' && (
                         <span

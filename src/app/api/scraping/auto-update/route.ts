@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { triggerAutoUpdates } from '@/lib/services/scrapingService';
 import { requireAuth } from '@/lib/auth/utils';
 
@@ -13,7 +13,7 @@ import { requireAuth } from '@/lib/auth/utils';
  * Pour MVP, on protège la route avec requireAuth().
  * Dans une version future, on pourrait utiliser un secret partagé pour les appels externes.
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Pour MVP, on exige une authentification
     // Dans une version future, on pourrait accepter un secret dans les headers
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 /**
  * GET handler pour vérifier quelles sources doivent être mises à jour
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const userId = await requireAuth();
     const { getSourcesDueForUpdate } = await import('@/lib/services/scrapingService');
