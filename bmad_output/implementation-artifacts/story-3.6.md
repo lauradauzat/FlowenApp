@@ -1,6 +1,6 @@
 # Story 3.6: Archivage des fiches contact et salle
 
-Status: review
+Status: done
 
 ## Story
 
@@ -153,6 +153,13 @@ Claude Sonnet 4.5
   - ⚠️ Les Server Actions de mailing seront à vérifier lors de l'implémentation des campagnes (Story 6.x)
   - ✓ Comportement documenté : les archivés ne sont pas inclus dans les listes actives par défaut
 
+### Code Review Notes
+
+- **Tests manquants** : Ajout de tests complets pour les Server Actions d'archivage/restauration
+  - ✓ Tests pour `archiveContact` et `restoreContact` dans `contactActions.test.ts`
+  - ✓ Tests pour `archiveVenue` et `restoreVenue` dans `venueActions.test.ts`
+  - ✓ Vérification du multi-tenancy et des cas d'erreur (ALREADY_ARCHIVED, ALREADY_ACTIVE, NOT_FOUND)
+
 ### File List
 
 **Validations :**
@@ -175,3 +182,13 @@ Claude Sonnet 4.5
 - `src/app/venues/[id]/page.tsx` — Ajout du bouton "Archiver"/"Restaurer"
 - `src/app/contacts/page.tsx` — Filtrage des archivés par défaut (filtre de statut déjà présent)
 - `src/app/venues/page.tsx` — Filtrage des archivés par défaut (filtre de statut déjà présent)
+
+**Tests :**
+- `src/actions/contactActions.test.ts` — Tests ajoutés pour `archiveContact` et `restoreContact`
+  - ✓ Test d'archivage avec vérification ownership
+  - ✓ Test de restauration avec vérification ownership
+  - ✓ Tests d'erreurs (ALREADY_ARCHIVED, ALREADY_ACTIVE, NOT_FOUND)
+- `src/actions/venueActions.test.ts` — Tests ajoutés pour `archiveVenue` et `restoreVenue`
+  - ✓ Test d'archivage avec vérification ownership
+  - ✓ Test de restauration avec vérification ownership
+  - ✓ Tests d'erreurs (ALREADY_ARCHIVED, ALREADY_ACTIVE, NOT_FOUND)

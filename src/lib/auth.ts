@@ -77,8 +77,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     warn(code, ...message) {
       console.warn("[auth][warn]", code, ...message);
     },
-    debug(code, ...message) {
-      // console.debug("[auth][debug]", code, ...message);
+    debug(code: unknown, ...message: unknown[]) {
+      void code;
+      void message;
     },
   },
   callbacks: {

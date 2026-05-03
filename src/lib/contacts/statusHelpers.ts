@@ -1,6 +1,8 @@
-import type { ContactStatus } from '@prisma/client';
+import type { ContactStatus, VenueStatus } from '@prisma/client';
 
-export function getStatusLabel(status: ContactStatus): string {
+type Status = ContactStatus | VenueStatus;
+
+export function getStatusLabel(status: Status): string {
   switch (status) {
     case 'ACTIVE':
       return 'Actif';
@@ -9,11 +11,11 @@ export function getStatusLabel(status: ContactStatus): string {
     case 'ERROR':
       return 'Avec erreurs';
     default:
-      return status;
+      return String(status);
   }
 }
 
-export function getStatusClasses(status: ContactStatus): string {
+export function getStatusClasses(status: Status): string {
   switch (status) {
     case 'ACTIVE':
       return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800';
@@ -24,4 +26,21 @@ export function getStatusClasses(status: ContactStatus): string {
     default:
       return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
   }
+}
+
+// Helpers spécifiques pour compatibilité (même logique mais typés)
+export function getContactStatusLabel(status: ContactStatus): string {
+  return getStatusLabel(status);
+}
+
+export function getVenueStatusLabel(status: VenueStatus): string {
+  return getStatusLabel(status);
+}
+
+export function getContactStatusClasses(status: ContactStatus): string {
+  return getStatusClasses(status);
+}
+
+export function getVenueStatusClasses(status: VenueStatus): string {
+  return getStatusClasses(status);
 }

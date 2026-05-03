@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth/utils';
 import { getUserSettings } from '@/actions/userSettingsActions';
 import { getEffectiveFicheConfig } from '@/lib/ficheFields';
 import { prisma } from '@/lib/prisma/client';
-import { VenueStatus } from '@prisma/client';
+import { getVenueStatusLabel, getVenueStatusClasses } from '@/lib/contacts/statusHelpers';
 import { EditableVenueSection } from '@/components/venues/EditableVenueSection';
 import { ArchiveButton } from '@/components/venues/ArchiveButton';
 import { VenueErrors } from '@/components/venues/VenueErrors';
@@ -14,32 +14,6 @@ import { getContactsForVenue } from '@/actions/contactVenueActions';
 import { getExchangesForVenue } from '@/actions/campaignActions';
 import { getProjectsForSelect } from '@/actions/projectActions';
 import { ExchangeHistory } from '@/components/campaigns/ExchangeHistory';
-
-function getStatusLabel(status: VenueStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'Active';
-    case 'ARCHIVED':
-      return 'Archivée';
-    case 'ERROR':
-      return 'Avec erreurs';
-    default:
-      return status;
-  }
-}
-
-function getStatusClasses(status: VenueStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800';
-    case 'ARCHIVED':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
-    case 'ERROR':
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800';
-    default:
-      return 'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
-  }
-}
 
 async function getVenue(id: string, userId: string) {
   return prisma.venue.findFirst({
@@ -89,8 +63,8 @@ export default async function VenueDetailPage({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className={getStatusClasses(venue.status)}>
-              {getStatusLabel(venue.status)}
+            <span className={getVenueStatusClasses(venue.status)}>
+              {getVenueStatusLabel(venue.status)}
             </span>
             <ArchiveButton venueId={venue.id} isArchived={venue.status === 'ARCHIVED'} />
           </div>

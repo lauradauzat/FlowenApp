@@ -4,6 +4,10 @@ import {
   getContacts,
   updateContact,
   deleteContact,
+  archiveContact,
+  restoreContact,
+  markContactAsObsolete,
+  markContactAsValid,
 } from '@/actions/contactActions';
 import { prisma } from '@/lib/prisma/client';
 import { requireAuth } from '@/lib/auth/utils';
@@ -266,6 +270,195 @@ describe('deleteContact action', () => {
     expect(mockedPrisma.contact.delete).not.toHaveBeenCalled();
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('archiveContact action', () => {
+  beforeEach(() => {
+    mockedPrisma.contact.findFirst.mockReset();
+    mockedPrisma.contact.update.mockReset();
+    mockedRequireAuth.mockReset();
+  });
+
+  it('archive un contact quand l\'utilisateur en est propriétaire', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue({
+      id: 'c1',
+      userId: 'user_123',
+      status: 'ACTIVE',
+    });
+    mockedPrisma.contact.update.mockResolvedValue({
+      id: 'c1',
+      status: 'ARCHIVED',
+    });
+
+    const result = await archiveContact({ id: 'c1' });
+
+    expect(mockedPrisma.contact.findFirst).toHaveBeenCalledWith({
+      where: { id: 'c1', userId: 'user_123' },
+    });
+    expect(mockedPrisma.contact.update).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      data: { status: 'ARCHIVED' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('retourne ALREADY_ARCHIVED si le contact est déjà archivé', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue({
+      id: 'c1',
+      userId: 'user_123',
+      status: 'ARCHIVED',
+    });
+
+    const result = await archiveContact({ id: 'c1' });
+
+    expect(mockedPrisma.contact.update).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('ALREADY_ARCHIVED');
+  });
+
+  it('retourne NOT_FOUND si le contact n\'appartient pas à l\'utilisateur', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue(null);
+
+    const result = await archiveContact({ id: 'c_autre_user' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('restoreContact action', () => {
+  beforeEach(() => {
+    mockedPrisma.contact.findFirst.mockReset();
+    mockedPrisma.contact.update.mockReset();
+    mockedRequireAuth.mockReset();
+  });
+
+  it('restaure un contact archivé quand l\'utilisateur en est propriétaire', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue({
+      id: 'c1',
+      userId: 'user_123',
+      status: 'ARCHIVED',
+    });
+    mockedPrisma.contact.update.mockResolvedValue({
+      id: 'c1',
+      status: 'ACTIVE',
+    });
+
+    const result = await restoreContact({ id: 'c1' });
+
+    expect(mockedPrisma.contact.update).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      data: { status: 'ACTIVE' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('retourne ALREADY_ACTIVE si le contact est déjà actif', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue({
+      id: 'c1',
+      userId: 'user_123',
+      status: 'ACTIVE',
+    });
+
+    const result = await restoreContact({ id: 'c1' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('ALREADY_ACTIVE');
+  });
+});
+
+describe('markContactAsObsolete action', () => {
+  beforeEach(() => {
+    mockedPrisma.contact.findFirst.mockReset();
+    mockedPrisma.contact.update.mockReset();
+    mockedRequireAuth.mockReset();
+  });
+
+  it('marque un contact comme obsolète quand l\'utilisateur en est propriétaire', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue({
+      id: 'c1',
+      userId: 'user_123',
+      status: 'ACTIVE',
+    });
+    mockedPrisma.contact.update.mockResolvedValue({
+      id: 'c1',
+      status: 'ERROR',
+    });
+
+    const result = await markContactAsObsolete({ id: 'c1' });
+
+    expect(mockedPrisma.contact.update).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      data: { status: 'ERROR' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('retourne ALREADY_OBSOLETE si le contact est déjà obsolète', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue({
+      id: 'c1',
+      userId: 'user_123',
+      status: 'ERROR',
+    });
+
+    const result = await markContactAsObsolete({ id: 'c1' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('ALREADY_OBSOLETE');
+  });
+});
+
+describe('markContactAsValid action', () => {
+  beforeEach(() => {
+    mockedPrisma.contact.findFirst.mockReset();
+    mockedPrisma.contact.update.mockReset();
+    mockedRequireAuth.mockReset();
+  });
+
+  it('marque un contact obsolète comme valide si les données sont valides', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue({
+      id: 'c1',
+      userId: 'user_123',
+      firstName: 'Laura',
+      lastName: 'Capuche',
+      email: 'laura@example.com',
+      phone: null,
+      role: null,
+      notes: null,
+      status: 'ERROR',
+    });
+    mockedPrisma.contact.update.mockResolvedValue({
+      id: 'c1',
+      status: 'ACTIVE',
+    });
+
+    const result = await markContactAsValid({ id: 'c1' });
+
+    expect(mockedPrisma.contact.update).toHaveBeenCalled();
+    expect(result.success).toBe(true);
+  });
+
+  it('retourne NOT_OBSOLETE si le contact n\'est pas obsolète', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.contact.findFirst.mockResolvedValue({
+      id: 'c1',
+      userId: 'user_123',
+      status: 'ACTIVE',
+    });
+
+    const result = await markContactAsValid({ id: 'c1' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('NOT_OBSOLETE');
   });
 });
 

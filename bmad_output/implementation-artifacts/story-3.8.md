@@ -1,6 +1,6 @@
 # Story 3.8: Détection automatique de l'obsolescence des données
 
-Status: review
+Status: done
 
 ## Story
 
@@ -136,6 +136,13 @@ Claude Sonnet 4.5
   - ✓ Message d'aide : guide l'utilisateur vers le formulaire d'édition pour corriger
   - ✓ Intégration des Server Actions `markContactAsValid` et `archiveContact`
 
+### Code Review Notes
+
+- **Tests manquants** : Ajout de tests pour les Server Actions de gestion d'obsolescence
+  - ✓ Tests pour `markContactAsObsolete` dans `contactActions.test.ts`
+  - ✓ Tests pour `markContactAsValid` dans `contactActions.test.ts`
+  - ✓ Vérification du multi-tenancy et des cas d'erreur (ALREADY_OBSOLETE, NOT_OBSOLETE, NOT_FOUND)
+
 ### File List
 
 **Validations :**
@@ -150,6 +157,12 @@ Claude Sonnet 4.5
 **Pages modifiées :**
 - `src/app/contacts/page.tsx` — Badge "Obsolète" pour les contacts avec erreurs et email
 - `src/app/contacts/[id]/page.tsx` — Affichage du composant `ObsoleteActions` pour les contacts obsolètes
+
+**Tests :**
+- `src/actions/contactActions.test.ts` — Tests ajoutés pour `markContactAsObsolete` et `markContactAsValid`
+  - ✓ Test de marquage comme obsolète avec vérification ownership
+  - ✓ Test de marquage comme valide avec validation des données
+  - ✓ Tests d'erreurs (ALREADY_OBSOLETE, NOT_OBSOLETE, NOT_FOUND)
 
 ### Notes d'Intégration Future
 

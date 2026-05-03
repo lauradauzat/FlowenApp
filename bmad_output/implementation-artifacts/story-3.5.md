@@ -1,6 +1,6 @@
 # Story 3.5: Modification des fiches contact et salle
 
-Status: review
+Status: done
 
 ## Story
 
@@ -122,6 +122,10 @@ Claude Sonnet 4.5
   - ✓ En mode création ou édition depuis liste : redirection vers la liste (comportement existant préservé)
   - ✓ Formulaire se ferme automatiquement après sauvegarde réussie
   - ✓ Les modifications sont visibles immédiatement grâce au rafraîchissement de la page
+
+### Code Review Notes
+
+- **Tests** : Les composants `EditableContactSection` et `EditableVenueSection` sont des composants UI clients qui gèrent l'état local. Les tests d'intégration sont couverts par les tests des Server Actions (`updateContact`, `updateVenue`) et les tests des composants de formulaire existants.
 
 ### File List
 

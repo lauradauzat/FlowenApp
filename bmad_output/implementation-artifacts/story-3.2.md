@@ -1,6 +1,6 @@
 # Story 3.2: Création et gestion des fiches de salle
 
-Status: review
+Status: done
 
 ## Story
 
@@ -183,6 +183,7 @@ Claude Sonnet 4.5
   - ✓ Filtrage côté serveur avec clauses Prisma `OR` (nom, adresse, région) + filtres par statut, région, style
   - ✓ Utilisation des query params (`q`, `status`, `region`, `style`) pour persister les filtres
   - ✓ Bouton "Réinitialiser" pour effacer tous les filtres
+- **Code review (2025-01-26)** : Corrections appliquées — tests getVenues/updateVenue/deleteVenue/ownership, extraction `getStatusLabel`/`getStatusClasses` dans `statusHelpers`, File List complétée (`venueValidation.ts`, `EditableVenueSection.tsx`, `VenueErrors.tsx`, `ArchiveButton.tsx`), libellé « Créer une nouvelle salle ». Status → `done`.
 
 ### File List
 
@@ -197,12 +198,22 @@ Claude Sonnet 4.5
 
 **Server Actions :**
 - `src/actions/venueActions.ts` — Server Actions `createVenue`, `getVenues`, `updateVenue`, `deleteVenue`
+- `src/actions/venueActions.test.ts` — Tests createVenue, getVenues, updateVenue, deleteVenue, ownership/multi‑tenancy
+
+**Validations :**
+- `src/lib/validations/venueValidation.ts` — Validation métier venue (validateVenue) pour statut ERROR/ACTIVE
 
 **Composants :**
 - `src/components/venues/VenueForm.tsx` — Formulaire client pour création/édition de salle
+- `src/components/venues/EditableVenueSection.tsx` — Section édition inline sur la page détail
+- `src/components/venues/VenueErrors.tsx` — Affichage des erreurs de validation venue
+- `src/components/venues/ArchiveButton.tsx` — Bouton archivage/restauration venue
 
 **Pages :**
-- `src/app/venues/page.tsx` — Page de liste des salles avec recherche et filtres (statut, région, style)
+- `src/app/venues/page.tsx` — Page liste avec recherche, filtres (statut, région, style), Réinitialiser (Link), libellé AC, statusHelpers
 - `src/app/venues/new/page.tsx` — Page de création de salle
-- `src/app/venues/[id]/page.tsx` — Page de détail + édition de salle
+- `src/app/venues/[id]/page.tsx` — Page de détail + édition, statusHelpers
+
+**Helpers partagés :**
+- `src/lib/contacts/statusHelpers.ts` — getStatusLabel/getStatusClasses (partagés contacts et venues)
 
