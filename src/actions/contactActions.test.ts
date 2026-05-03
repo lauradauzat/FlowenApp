@@ -26,6 +26,7 @@ vi.mock('@/lib/prisma/client', () => {
   const contactFindFirst = vi.fn();
   const contactUpdate = vi.fn();
   const contactDelete = vi.fn();
+  const userSettingsFindUnique = vi.fn();
   return {
     prisma: {
       contact: {
@@ -34,6 +35,9 @@ vi.mock('@/lib/prisma/client', () => {
         findFirst: contactFindFirst,
         update: contactUpdate,
         delete: contactDelete,
+      },
+      userSettings: {
+        findUnique: userSettingsFindUnique,
       },
     },
   };
@@ -48,7 +52,15 @@ const mockedPrisma = prisma as unknown as {
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
+  userSettings: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
 };
+
+beforeEach(() => {
+  mockedPrisma.userSettings.findUnique.mockReset();
+  mockedPrisma.userSettings.findUnique.mockResolvedValue(null);
+});
 
 describe('createContact action', () => {
   beforeEach(() => {
@@ -96,6 +108,24 @@ describe('createContact action', () => {
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({ id: 'contact_1' });
+  });
+
+  it('refuse la création si les paramètres fiche exigent un email (Story 10.3)', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.userSettings.findUnique.mockResolvedValue({
+      ficheContactFields: { email: { visible: true, required: true } },
+      ficheVenueFields: null,
+    });
+
+    const result = await createContact({
+      firstName: 'Laura',
+      lastName: 'Capuche',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('VALIDATION_ERROR');
+    expect(result.error?.message).toMatch(/email/i);
+    expect(mockedPrisma.contact.create).not.toHaveBeenCalled();
   });
 });
 

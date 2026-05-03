@@ -11,6 +11,8 @@ import {
   markContactObsoleteSchema,
 } from '@/lib/validations/contact';
 import { validateContact } from '@/lib/validations/contactValidation';
+import { validateContactAgainstFicheConfig } from '@/lib/ficheFields';
+import { loadEffectiveFicheConfig } from '@/lib/userFicheEffectiveConfig';
 
 type ActionResult<T> = {
   success: boolean;
@@ -42,6 +44,25 @@ export async function createContact(
     const userId = await requireAuth();
 
     const validated = createContactSchema.parse(input);
+
+    const { contact: ficheContactCfg } = await loadEffectiveFicheConfig(userId);
+    const ficheErrors = validateContactAgainstFicheConfig(
+      {
+        firstName: validated.firstName,
+        lastName: validated.lastName,
+        email: validated.email,
+        phone: validated.phone,
+        role: validated.role,
+        notes: validated.notes,
+      },
+      ficheContactCfg
+    );
+    if (ficheErrors.length > 0) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: ficheErrors.join(' · ') },
+      };
+    }
 
     // Valider les données et déterminer le statut
     const validation = validateContact({
@@ -189,6 +210,15 @@ export async function updateContact(
       role: validated.role ?? existing.role,
       notes: validated.notes ?? existing.notes,
     };
+
+    const { contact: ficheContactCfg } = await loadEffectiveFicheConfig(userId);
+    const ficheErrors = validateContactAgainstFicheConfig(currentData, ficheContactCfg);
+    if (ficheErrors.length > 0) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: ficheErrors.join(' · ') },
+      };
+    }
 
     // Valider les données et déterminer le statut (sauf si le statut est explicitement défini)
     let newStatus = validated.status ?? existing.status;

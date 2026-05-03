@@ -24,6 +24,7 @@ vi.mock('@/lib/prisma/client', () => {
   const venueFindFirst = vi.fn();
   const venueUpdate = vi.fn();
   const venueDelete = vi.fn();
+  const userSettingsFindUnique = vi.fn();
   return {
     prisma: {
       venue: {
@@ -32,6 +33,9 @@ vi.mock('@/lib/prisma/client', () => {
         findFirst: venueFindFirst,
         update: venueUpdate,
         delete: venueDelete,
+      },
+      userSettings: {
+        findUnique: userSettingsFindUnique,
       },
     },
   };
@@ -46,7 +50,15 @@ const mockedPrisma = prisma as unknown as {
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
+  userSettings: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
 };
+
+beforeEach(() => {
+  mockedPrisma.userSettings.findUnique.mockReset();
+  mockedPrisma.userSettings.findUnique.mockResolvedValue(null);
+});
 
 describe('createVenue action', () => {
   beforeEach(() => {
@@ -100,6 +112,24 @@ describe('createVenue action', () => {
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({ id: 'venue_1' });
+  });
+
+  it('refuse la création si les paramètres fiche exigent une capacité (Story 10.3)', async () => {
+    mockedRequireAuth.mockResolvedValue('user_123');
+    mockedPrisma.userSettings.findUnique.mockResolvedValue({
+      ficheContactFields: null,
+      ficheVenueFields: { capacity: { visible: true, required: true } },
+    });
+
+    const result = await createVenue({
+      name: 'Sans capacité',
+      address: 'Paris',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('VALIDATION_ERROR');
+    expect(result.error?.message).toMatch(/capacité/i);
+    expect(mockedPrisma.venue.create).not.toHaveBeenCalled();
   });
 });
 

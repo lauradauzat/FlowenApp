@@ -10,6 +10,8 @@ import {
   archiveVenueSchema,
 } from '@/lib/validations/venue';
 import { validateVenue } from '@/lib/validations/venueValidation';
+import { validateVenueAgainstFicheConfig } from '@/lib/ficheFields';
+import { loadEffectiveFicheConfig } from '@/lib/userFicheEffectiveConfig';
 
 type ActionResult<T> = {
   success: boolean;
@@ -42,6 +44,26 @@ export async function createVenue(
     const userId = await requireAuth();
 
     const validated = createVenueSchema.parse(input);
+
+    const { venue: ficheVenueCfg } = await loadEffectiveFicheConfig(userId);
+    const ficheErrors = validateVenueAgainstFicheConfig(
+      {
+        name: validated.name,
+        address: validated.address,
+        capacity: validated.capacity ?? null,
+        style: validated.style,
+        region: validated.region,
+        website: validated.website,
+        notes: validated.notes,
+      },
+      ficheVenueCfg
+    );
+    if (ficheErrors.length > 0) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: ficheErrors.join(' · ') },
+      };
+    }
 
     // Valider les données et déterminer le statut
     const validation = validateVenue({
@@ -193,6 +215,15 @@ export async function updateVenue(
       website: validated.website ?? existing.website,
       notes: validated.notes ?? existing.notes,
     };
+
+    const { venue: ficheVenueCfg } = await loadEffectiveFicheConfig(userId);
+    const ficheErrors = validateVenueAgainstFicheConfig(currentData, ficheVenueCfg);
+    if (ficheErrors.length > 0) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: ficheErrors.join(' · ') },
+      };
+    }
 
     // Valider les données et déterminer le statut (sauf si le statut est explicitement défini)
     let newStatus = validated.status ?? existing.status;
