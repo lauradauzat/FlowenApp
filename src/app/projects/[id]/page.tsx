@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma/client';
 import { StepCard } from '@/components/projects/StepCard';
 import { PersonalDataForm } from '@/components/projects/PersonalDataForm';
 import { ProjectTimeline } from '@/components/projects/ProjectTimeline';
+import { ProjectSchedulePanel } from '@/components/projects/ProjectSchedulePanel';
+import { AddStepForm } from '@/components/projects/AddStepForm';
 import {
   calculateProjectStatus,
   calculateProjectProgress,
@@ -45,9 +47,17 @@ export default async function ProjectDetailPage({
 
   const projectStatus = calculateProjectStatus(project.steps);
   const progress = calculateProjectProgress(project.steps);
+  const parentOptions = project.steps.filter((s) => s.parentStepId == null).map((s) => ({ id: s.id, name: s.name }));
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <ProjectSchedulePanel
+        projectId={project.id}
+        startDate={project.startDate}
+        endDate={project.endDate}
+        weeklyDedicatedDays={project.weeklyDedicatedDays}
+      />
+
       <div className="mb-6">
         <div className="flex justify-between items-start mb-4">
           <div>
@@ -113,11 +123,28 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* Liste des étapes avec actions */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Gérer les étapes</h2>
-        <div className="space-y-3">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 space-y-4">
+        <h2 className="text-xl font-semibold mb-2">Gérer les étapes</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Phases et sous-tâches (modèle EP enrichi à la création). Ajoutez ou supprimez des étapes selon votre
+          processus.
+        </p>
+        <AddStepForm projectId={project.id} parentOptions={parentOptions} />
+        <div className="space-y-3 pt-4 border-t border-gray-100">
           {project.steps.map((step) => (
-            <StepCard key={step.id} step={step} />
+            <StepCard
+              key={step.id}
+              step={{
+                id: step.id,
+                name: step.name,
+                order: step.order,
+                status: step.status,
+                plannedDate: step.plannedDate,
+                actualDate: step.actualDate,
+                parentStepId: step.parentStepId,
+                estimatedDays: step.estimatedDays,
+              }}
+            />
           ))}
         </div>
       </div>

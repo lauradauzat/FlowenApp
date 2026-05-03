@@ -153,6 +153,8 @@ model Project {
   userId      String       @map("user_id")
   startDate   DateTime?    @map("start_date")
   endDate     DateTime?    @map("end_date")
+  /** Jours de travail équivalent consacrés au projet par semaine (0,5–7) pour calibrer les suggestions */
+  weeklyDedicatedDays Float? @map("weekly_dedicated_days")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
@@ -174,12 +176,18 @@ model ProjectStep {
   order       Int
   plannedDate DateTime?   @map("planned_date")
   actualDate  DateTime?   @map("actual_date")
+  /** Durée indicative (jours) pour suggestions de calendrier */
+  estimatedDays Int?      @map("estimated_days")
+  parentStepId  String?   @map("parent_step_id")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentStep ProjectStep?  @relation("StepSubtasks", fields: [parentStepId], references: [id], onDelete: Cascade)
+  subtasks   ProjectStep[] @relation("StepSubtasks")
 
   @@index([projectId])
+  @@index([parentStepId])
   @@map("project_steps")
 }
 

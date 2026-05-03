@@ -9,6 +9,8 @@ interface Step {
   status: StepStatus;
   plannedDate: Date | null;
   actualDate: Date | null;
+  parentStepId?: string | null;
+  estimatedDays?: number | null;
 }
 
 interface ProjectTimelineProps {
@@ -79,9 +81,10 @@ export function ProjectTimeline({ steps, startDate, endDate }: ProjectTimelinePr
         {steps.map((step) => {
           const statusColor = getStepStatusColor(step.status);
           const borderColor = getStepStatusBorderColor(step.status);
+          const isSub = !!step.parentStepId;
 
           return (
-            <div key={step.id} className="relative flex items-start gap-4">
+            <div key={step.id} className={`relative flex items-start gap-4 ${isSub ? 'ml-10' : ''}`}>
               {/* Timeline dot */}
               <div className="relative z-10 flex-shrink-0">
                 <div
@@ -113,7 +116,12 @@ export function ProjectTimeline({ steps, startDate, endDate }: ProjectTimelinePr
                 <div className="flex items-start justify-between mb-1">
                   <div>
                     <h3 className="font-semibold text-gray-900">{step.name}</h3>
-                    <p className="text-xs text-gray-500">Étape #{step.order}</p>
+                    <p className="text-xs text-gray-500">
+                      Étape #{step.order}
+                      {step.estimatedDays != null && step.estimatedDays > 0 && (
+                        <span className="ml-2 text-indigo-600">~{step.estimatedDays} j</span>
+                      )}
+                    </p>
                   </div>
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded ${
